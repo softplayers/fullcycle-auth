@@ -1,0 +1,31 @@
+version: "3"
+
+services:
+  auth:
+    image: quay.io/keycloak/keycloak:16.1.0
+    container_name: fullcyle-auth
+    environment:
+      - KEYCLOAK_USER=admin
+      - KEYCLOAK_PASSWORD=admin
+      - DB_ADDR=db
+      - DB_VENDOR=mysql
+      - DB_DATABASE=fullcyle_auth
+      - DB_USER=root
+      - DB_PASSWORD=root
+    volumes:
+      - ./.docker/elasticdata:/usr/share/elasticsearch/data
+    ports:
+      - 8080:8080
+    depends_on:
+      - db
+
+  db:
+    build: ./.docker/mysql
+    # image: mysql:5.7
+    container_name: fullcyle-auth-db
+    environment:
+      - MYSQL_DATABASE=fullcyle_auth
+      - MYSQL_ROOT_PASSWORD=root
+    volumes:
+      - ./.docker/dbdata:/var/lib/mysql
+      - ./.docker/mysql:/docker-entrypoint-initdb.d
