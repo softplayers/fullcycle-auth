@@ -29,3 +29,11 @@ services:
     volumes:
       - ./.docker/dbdata:/var/lib/mysql
       - ./.docker/mysql:/docker-entrypoint-initdb.d
+
+  frontend:
+    build: ./frontend
+    entrypoint: ./.docker/entrypoint.sh
+    container_name: fullcycle-auth-frontend
+    volumes:
+      - ./frontend:/home/node/app
+      
