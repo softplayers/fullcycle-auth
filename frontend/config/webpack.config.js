@@ -85,21 +85,57 @@ const hasJsxRuntime = (() => {
   }
 })();
 
+const themes = [];
 const themesDir = fs
   .readdirSync(paths.keycloackThemesPath, { withFileTypes: true })
   .filter((item) => item.isDirectory())
   .map((dir) => dir.name);
 
 for (const themeDir of themesDir) {
+
+  const keycloakTemplates = [];
   const pagesDirs = fs
   .readdirSync(path.join(paths.keycloackThemesPath, themeDir))
   .filter((dir) => dir.endsWith('-pages'));
 
-  console.log(themesDir, pagesDirs);
-}
+  for (const pagesDir of pagesDirs) {
 
-// TODO: Remover, colocado apenas para testes
-process.exit(0);
+    const templatesDirs = fs
+    .readdirSync(path.join(paths.keycloackThemesPath, themeDir, pagesDir))
+    .filter((dir) => dir.endsWith('-template'));
+
+    for (const templateDir of templatesDirs) {
+      
+      const ftlTemplates = fs
+      .readdirSync(path.join(paths.keycloackThemesPath, themeDir, pagesDir, templateDir))
+      .filter((file) => file.endsWith('.ftl'));
+
+      const componentPages = fs
+      .readdirSync(path.join(paths.keycloackThemesPath, themeDir, pagesDir, templateDir))
+      .filter((file) => file.endsWith('.page.tsx'));
+
+      if (ftlTemplates.length && componentPages.length) {
+        const ftlTemplate = ftlTemplates[0];
+        const componentPage = componentPages[0];
+        keycloakTemplates.push({
+          templateSrc: path.join(paths.keycloackThemesPath, themeDir, pagesDir, templateDir, ftlTemplate),
+          templateOut: path.join(themeDir, pagesDir.replace('-pages', ''), ftlTemplate),
+          entry: {
+            chunk: ftlTemplate.replace('.ftl', ''),
+            path: path.join(paths.keycloackThemesPath, themeDir, pagesDir, templateDir, componentPage),
+          }
+        })
+      }
+    }
+  }
+
+  if (keycloakTemplates.length) {
+    themes.push({
+      themeDir,
+      templates: keycloakTemplates 
+    })
+  }
+}
 
 // This is the production and development configuration.
 // It is focused on developer experience, fast rebuilds, and a minimal bundle.
@@ -202,7 +238,22 @@ module.exports = function (webpackEnv) {
     return loaders;
   };
 
-  return {
+  console.log(themes.map(theme => ({
+    entry: isEnvDevelopment && !shouldUseReactRefresh 
+    ? theme.templates.reduce((prev, curr) => {
+      prev[curr.entry.chunk] = [
+        // webpackDevClientEntry,
+        curr.entry.path
+      ];
+      return prev;
+    }, {})
+    : theme.templates.reduce((prev, curr) => {
+      return { ...prev, [curr.entry.chunk]: curr.entry.path }
+    }, {}),
+  })));
+  // process.exit(0);
+
+  return themes.map(theme => ({
     target: ["browserslist"],
     mode: isEnvProduction ? "production" : isEnvDevelopment && "development",
     // Stop compilation early in production
@@ -214,7 +265,17 @@ module.exports = function (webpackEnv) {
       : isEnvDevelopment && "cheap-module-source-map",
     // These are the "entry points" to our application.
     // This means they will be the "root" imports that are included in JS bundle.
-    entry: paths.appIndexJs,
+    entry: isEnvDevelopment && !shouldUseReactRefresh 
+      ? theme.templates.reduce((prev, curr) => {
+        prev[curr.entry.chunk] = [
+          // webpackDevClientEntry,
+          curr.entry.path
+        ];
+        return prev;
+      }, {})
+      : theme.templates.reduce((prev, curr) => {
+        return { ...prev, [curr.entry.chunk]: curr.entry.path }
+      }, {}),
     output: {
       // The build folder.
       path: paths.appBuild,
@@ -766,5 +827,5 @@ module.exports = function (webpackEnv) {
     // Turn off performance processing because we utilize
     // our own hints via the FileSizeReporter
     performance: false,
-  };
+  }));
 };
