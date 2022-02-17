@@ -15,34 +15,68 @@ process.on("unhandledRejection", (err) => {
 require("../config/env");
 
 const fs = require("fs");
+const chalk = require("react-dev-utils/chalk");
 const webpack = require("webpack");
-const checkRequiredFiles = require("react-dev-utils/checkRequiredFiles");
-const { createCompiler } = require("react-dev-utils/WebpackDevServerUtils");
+const { createCompiler } = require("../config/WebpackDevServerUtils");
 const paths = require("../config/paths");
 const configFactory = require("../config/webpack.config");
+const makeCommonResources = require("./_make-common-resources");
 
 const useYarn = fs.existsSync(paths.yarnLockFile);
 
-// Warn and crash if required files are missing
-if (!checkRequiredFiles([paths.appHtml, paths.appIndexJs])) {
-  process.exit(1);
+
+if (process.env.HOST) {
+  console.log(
+    chalk.cyan(
+      `Attempting to bind to HOST environment variable: ${chalk.yellow(
+        chalk.bold(process.env.HOST)
+      )}`
+    )
+  );
+  console.log(
+    `If this was unintentional, check that you haven't mistakenly set it in your shell.`
+  );
+  console.log(
+    `Learn more here: ${chalk.yellow("https://cra.link/advanced-config")}`
+  );
+  console.log();
 }
 
 const config = configFactory("development");
 const appName = require(paths.appPackageJson).name;
 
 const useTypeScript = fs.existsSync(paths.appTsConfig);
+const tscCompileOnError = process.env.TSC_COMPILE_ON_ERROR === "true";
 
 // Create a webpack compiler that is configured with custom messages.
-const compiler = createCompiler({
+createCompiler({
   appName,
   config,
-  urls: { localUrlForTerminal: "Only compiled" },
+  devSocket: { errors: () => {}, warnings: () => {} },
+  urls: {
+    localUrlForTerminal: "Only compiled",
+  },
   useYarn,
   useTypeScript,
+  tscCompileOnError,
   webpack,
 }).watch({}, (err, stats) => {
   if (err) {
-    console.err(err);
+    console.error(err);
   }
+
+  console.log(
+    stats.toString({
+      assets: false,
+      children: false,
+      chunks: false,
+      colors: true
+    })
+  );
+
+  if(err){
+    return;
+  }
+
+  makeCommonResources();
 });

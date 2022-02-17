@@ -1,5 +1,5 @@
     <#import "template.ftl" as layout>
-    <@layout.registrationLayout; section>
+    <@layout.registrationLayout showAnotherWayIfPresent=false; section>
     <#if section = "title">
      title
     <#elseif section = "header">
@@ -25,26 +25,18 @@
         </form>
     </#if>
 
-    <form class="${properties.kcFormClass!}">
-        <div class="${properties.kcFormGroupClass!}">
-            <div id="kc-form-buttons" class="${properties.kcFormButtonsClass!}">
-                <input id="authenticateWebAuthnButton" type="button" onclick="webAuthnAuthenticate()" value="${kcSanitize(msg("webauthn-doAuthenticate"))}"
-                   class="${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonBlockClass!} ${properties.kcButtonLargeClass!}">
-            </div>
-        </div>
-    </form>
-
     <script type="text/javascript" src="${url.resourcesCommonPath}/node_modules/jquery/dist/jquery.min.js"></script>
     <script type="text/javascript" src="${url.resourcesPath}/js/base64url.js"></script>
     <script type="text/javascript">
-        function webAuthnAuthenticate() {
+
+        window.onload = () => {
             let isUserIdentified = ${isUserIdentified};
             if (!isUserIdentified) {
                 doAuthenticate([]);
                 return;
             }
             checkAllowCredentials();
-        }
+        };
 
         function checkAllowCredentials() {
             let allowCredentials = [];
@@ -70,14 +62,6 @@
 
 
     function doAuthenticate(allowCredentials) {
-
-        // Check if WebAuthn is supported by this browser
-        if (!window.PublicKeyCredential) {
-            $("#error").val("${msg("webauthn-unsupported-browser-text")?no_esc}");
-            $("#webauth").submit();
-            return;
-        }
-
         let challenge = "${challenge}";
         let userVerification = "${userVerification}";
         let rpId = "${rpId}";
@@ -85,9 +69,6 @@
             rpId : rpId,
             challenge: base64url.decode(challenge, { loose: true })
         };
-
-        let createTimeout = ${createTimeout};
-        if (createTimeout !== 0) publicKey.timeout = createTimeout * 1000;
 
         if (allowCredentials.length) {
             publicKey.allowCredentials = allowCredentials;
